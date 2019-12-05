@@ -1,0 +1,6 @@
+__debug_bin
+database.db
+w2g.db
+.vscode/launch.json
+w2g.log
+parameters.env
