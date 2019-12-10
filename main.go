@@ -17,11 +17,17 @@ import (
 
 func main() {
 
+
+
+	
 	err := godotenv.Load("parameters.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 	src.AdmPass = os.Getenv("ADMP")
+
+
+
 
 	src.Db, src.Err = gorm.Open("sqlite3", "w2g.db")
 	if src.Err != nil {
