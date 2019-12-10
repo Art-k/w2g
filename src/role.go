@@ -7,6 +7,9 @@ import (
 // Role Described Roles
 type Role struct {
 	gorm.Model
-	Role  string `gorm:"type:varchar(100);unique_index"`
-	Users []User `gorm:"foreignkey:RoleID"`
+	Role      string `gorm:"type:varchar(100);unique_index"`
+	Users     []User `gorm:"foreignkey:RoleID"`
+	CreatedBy uint
+	UpdatedBy uint
+	DeletedBy uint
 }

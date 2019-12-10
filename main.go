@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	// "strings"
 
 	"./src"
 	"github.com/gorilla/mux"
@@ -65,7 +67,8 @@ func main() {
 func handleHTTP() {
 
 	r := mux.NewRouter()
-
+	r.Use(authMiddleware)
+	r.Use(headerMiddleware)
 	r.HandleFunc("/token", src.GetToken)
 	r.HandleFunc("/refreshtoken", src.GetRefreshToken)
 	r.HandleFunc("/users", src.Users)
@@ -90,9 +93,10 @@ func databasePrepare() {
 	var superAdminRoles []src.Role
 	src.Db.Where("role = ?", "Super Administrator").Find(&superAdminRoles)
 	var superAdminRoleID uint
+	var superAdminRole src.Role
 	if len(superAdminRoles) == 0 {
-		var superAdminRole src.Role
 		superAdminRole.Role = "Super Administrator"
+		superAdminRole.CreatedBy = 1
 		src.Db.Create(&superAdminRole)
 		superAdminRoleID = superAdminRole.ID
 	} else {
@@ -107,10 +111,67 @@ func databasePrepare() {
 		user.Email = "artem.kryhin@gmail.com"
 		user.RoleID = superAdminRoleID
 		user.Enabled = true
+		user.CreatedBy = 1
 		user.Hash = src.HashAndSalt([]byte(src.AdmPass))
 		src.Db.Create(&user)
+
 	} else {
 		fmt.Println("Super Admin is On Board")
 	}
 
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/user", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/users", true)
+
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/role", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/roles", true)
+
+
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		log.Println("URI " + r.RequestURI)
+		if r.RequestURI == "/token" {
+			next.ServeHTTP(w, r)
+		} else {
+
+			Authorization := r.Header.Get("Authorization")
+			isUser, cUser := src.IsLegalUser(Authorization)
+
+			if isUser {
+
+				route := r.URL.Path
+				method := r.Method
+
+				if !src.IfUserHasPermission(cUser, src.GetRoute(route), method) {
+					w.WriteHeader(http.StatusForbidden)
+					fmt.Fprintf(w, "{\"message\":\"Access Denided\"}")
+				}
+
+				ctx := context.WithValue(r.Context(), "user", cUser)
+				r = r.WithContext(ctx)
+
+				next.ServeHTTP(w, r)
+
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
+			}
+		}
+
+	})
+}
+
+func headerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		src.FillAnswerHeader(w)
+		src.OptionsAnswer(w)
+
+		// Do stuff here
+		// log.Println(r.RequestURI)
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
 }

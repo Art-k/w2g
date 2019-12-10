@@ -1,8 +1,9 @@
 package src
 
 import (
-	guuid "github.com/satori/go.uuid"
 	"net/http"
+
+	guuid "github.com/satori/go.uuid"
 )
 
 // OptionsAnswer create options answer for browser
@@ -21,4 +22,24 @@ func FillAnswerHeader(w http.ResponseWriter) {
 func GetHash() string {
 	id, _ := guuid.NewV4()
 	return id.String()
+}
+
+// FindOccurences find second occurences of a char
+func FindOccurences(source, char string, occur int) int {
+	count := 0
+	for i := 0; i < len(source); i++ {
+		if source[i:i+1] == char {
+			count++
+			if count == occur {
+				return i
+			}
+		}
+	}
+	return len(source)
+}
+
+// GetRoute get main route
+func GetRoute(inRoute string) string {
+	ind := FindOccurences(inRoute, "/", 2)
+	return inRoute[:ind]
 }
