@@ -9,6 +9,7 @@ import (
 	// "strings"
 
 	"./src"
+	// "github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -17,17 +18,11 @@ import (
 
 func main() {
 
-
-
-	
 	err := godotenv.Load("parameters.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 	src.AdmPass = os.Getenv("ADMP")
-
-
-
 
 	src.Db, src.Err = gorm.Open("sqlite3", "w2g.db")
 	if src.Err != nil {
@@ -77,8 +72,18 @@ func handleHTTP() {
 	r.Use(headerMiddleware)
 	r.HandleFunc("/token", src.GetToken)
 	r.HandleFunc("/refreshtoken", src.GetRefreshToken)
+
 	r.HandleFunc("/users", src.Users)
-	r.HandleFunc("/user/{id}", src.UserCRUD)
+	r.HandleFunc("/user", src.UserPostOptions)
+	r.HandleFunc("/user/{id}", src.UserOptionGetPatchDelete)
+
+	r.HandleFunc("/roles", src.Roles)
+	r.HandleFunc("/role", src.RolePostOptions)
+	r.HandleFunc("/role/{id}", src.RoleOptionGetPatchDelete)
+
+	r.HandleFunc("/companies", src.Companies)
+	r.HandleFunc("/company", src.CompanyPostOptions)
+	r.HandleFunc("/company/{id}", src.CompanyOptionGetPatchDelete)
 
 	fmt.Printf("Starting Server to HANDLE w2g.tech back end\nPort : " + src.Port + "\nAPI revision " + src.Version + "\n\n")
 	if err := http.ListenAndServe(":"+src.Port, r); err != nil {
@@ -88,21 +93,27 @@ func handleHTTP() {
 
 func databasePrepare() {
 
-	src.Db.AutoMigrate(&src.User{})
-	src.Db.AutoMigrate(&src.Role{})
-	src.Db.AutoMigrate(&src.RolePermission{})
-	src.Db.AutoMigrate(&src.UserPermission{})
-	src.Db.AutoMigrate(&src.Token{})
-	src.Db.AutoMigrate(&src.RefreshToken{})
+	src.Db.AutoMigrate(
+		&src.User{},
+		&src.Role{},
+		&src.RolePermission{},
+		&src.UserPermission{},
+		&src.Token{},
+		&src.RefreshToken{},
+		&src.Company{},
+		&src.Project{})
+
+	// src.Db.Model(&src.User{}).AddForeignKey("id", "roles(id)", "RESTRICT", "RESTRICT")
 
 	// type superAdminRolesType []src.Role
 	var superAdminRoles []src.Role
-	src.Db.Where("role = ?", "Super Administrator").Find(&superAdminRoles)
-	var superAdminRoleID uint
+	src.Db.Where("name = ?", "Super Administrator").Find(&superAdminRoles)
+	var superAdminRoleID string
 	var superAdminRole src.Role
 	if len(superAdminRoles) == 0 {
-		superAdminRole.Role = "Super Administrator"
-		superAdminRole.CreatedBy = 1
+		superAdminRole.Name = "Super Administrator"
+		// superAdminRole.CreatedBy = 1
+		// superAdminRole.UpdatedBy = 1
 		src.Db.Create(&superAdminRole)
 		superAdminRoleID = superAdminRole.ID
 	} else {
@@ -110,16 +121,20 @@ func databasePrepare() {
 	}
 
 	var user src.User
-	src.Db.Where("user_name = ?", "w2g-admin").Last(&user)
-	if user.UserName != "w2g-admin" {
-		user.UserName = "w2g-admin"
+	src.Db.Debug().Where("name = ?", "w2g-admin").Last(&user)
+	if user.Name != "w2g-admin" {
+		user.Name = "w2g-admin"
 		user.FullName = "Way2Go Super Admin"
 		user.Email = "artem.kryhin@gmail.com"
 		user.RoleID = superAdminRoleID
 		user.Enabled = true
-		user.CreatedBy = 1
+		// user.CreatedBy = 1
+		// user.UpdatedBy = 1
 		user.Hash = src.HashAndSalt([]byte(src.AdmPass))
 		src.Db.Create(&user)
+
+		// superAdminRole.Users = append(superAdminRole.Users, user)
+		// src.Db.Debug().Updates(superAdminRole)
 
 	} else {
 		fmt.Println("Super Admin is On Board")
@@ -131,7 +146,8 @@ func databasePrepare() {
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/role", true)
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/roles", true)
 
-
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/company", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/companies", true)
 }
 
 func authMiddleware(next http.Handler) http.Handler {
@@ -152,17 +168,19 @@ func authMiddleware(next http.Handler) http.Handler {
 
 				if !src.IfUserHasPermission(cUser, src.GetRoute(route), method) {
 					w.WriteHeader(http.StatusForbidden)
-					fmt.Fprintf(w, "{\"message\":\"Access Denided\"}")
+					n, _ := fmt.Fprintf(w, "{\"message\":\"Access Denided\"}")
+					log.Println(n)
 				}
 
-				ctx := context.WithValue(r.Context(), "user", cUser)
+				ctx := context.WithValue(r.Context(), "user", cUser.ID)
 				r = r.WithContext(ctx)
 
 				next.ServeHTTP(w, r)
 
 			} else {
 				w.WriteHeader(http.StatusNotFound)
-				fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
+				n, _ := fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
+				log.Println(n)
 			}
 		}
 

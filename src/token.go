@@ -7,27 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/jinzhu/gorm"
 )
-
-// Token Described Roles
-type Token struct {
-	gorm.Model
-	Token   string `gorm:"unique_index"`
-	UserID  uint
-	RoleID  uint
-	Expired time.Time
-}
-
-// RefreshToken Described Roles
-type RefreshToken struct {
-	gorm.Model
-	RefreshToken string `gorm:"unique_index"`
-	UserID       uint
-	RoleID       uint
-	Expired      time.Time
-}
 
 // IsLegalUser check if user exists
 func IsLegalUser(Auth string) (bool, User) {
@@ -37,7 +17,7 @@ func IsLegalUser(Auth string) (bool, User) {
 	var currentUser User
 
 	token := strings.Replace(Auth, "Bearer ", "", -1)
-
+	// var blankid uuid.UUID
 	Db.Where("token = ?", token).Last(&currentToken)
 	if currentToken.Token != "" {
 
@@ -45,7 +25,7 @@ func IsLegalUser(Auth string) (bool, User) {
 
 			Db.Where("id = ?", currentToken.UserID).Last(&currentUser)
 
-			if currentUser.UserName != "" {
+			if currentUser.Name != "" {
 				Answer = true
 			} else {
 				Answer = false
@@ -77,8 +57,8 @@ func GetToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var currentUser User
-		Db.Where("user_name = ?", usi.UserName).Last(&currentUser)
-		if currentUser.UserName == "" {
+		Db.Where("name = ?", usi.Name).Find(&currentUser)
+		if currentUser.Name == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "{\"message\":\"User not found\"}")
 			return
@@ -110,7 +90,7 @@ func GetToken(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// APITokenResponse
+// APITokenResponse function to return Api token
 func APITokenResponse(cu User) TokenResponse {
 	now := time.Now()
 
@@ -159,7 +139,6 @@ func GetRefreshToken(w http.ResponseWriter, r *http.Request) {
 		Authorization := r.Header.Get("Authorization")
 		_, cUser := IsLegalUserByRefreshToken(Authorization)
 
-
 		apiTokenResponse, _ := json.Marshal(APITokenResponse(cUser))
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, string(apiTokenResponse))
@@ -178,6 +157,7 @@ func IsLegalUserByRefreshToken(Auth string) (bool, User) {
 
 	token := strings.Replace(Auth, "Bearer ", "", -1)
 
+	// var blankid uuid.UUID
 	Db.Where("token = ?", token).Last(&currentToken)
 	if currentToken.Token != "" {
 
@@ -185,7 +165,7 @@ func IsLegalUserByRefreshToken(Auth string) (bool, User) {
 
 			Db.Where("id = ?", currentToken.UserID).Last(&currentUser)
 
-			if currentUser.UserName != "" {
+			if currentUser.Name != "" {
 				Answer = true
 			} else {
 				Answer = false
@@ -197,4 +177,3 @@ func IsLegalUserByRefreshToken(Auth string) (bool, User) {
 	return Answer, currentUser
 
 }
-

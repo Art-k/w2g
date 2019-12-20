@@ -1,39 +1,11 @@
 package src
 
 import (
-	"github.com/jinzhu/gorm"
+// "github.com/google/uuid"
 )
 
-// RolePermission the permission connected to Role
-type RolePermission struct {
-	gorm.Model
-	Post      bool `gorm:"default:'false'"`
-	Get       bool `gorm:"default:'false'"`
-	Patch     bool `gorm:"default:'false'"`
-	Delete    bool `gorm:"default:'false'"`
-	EndPoint  string
-	RoleID    uint `gorm:"foreignkey:RoleID"`
-	CreatedBy uint
-	UpdatedBy uint
-	DeletedBy uint
-}
-
-// UserPermission the permission connected to User
-type UserPermission struct {
-	gorm.Model
-	Post      bool `gorm:"default:'false'"`
-	Get       bool `gorm:"default:'false'"`
-	Patch     bool `gorm:"default:'false'"`
-	Delete    bool `gorm:"default:'false'"`
-	EndPoint  string
-	UserID    uint `gorm:"foreignkey:UserID"`
-	CreatedBy uint
-	UpdatedBy uint
-	DeletedBy uint
-}
-
 // SetAllPermissionsToByRoleIDifNotExists set all permissions to one value
-func SetAllPermissionsToByRoleIDifNotExists(roleID uint, route string, permission bool) {
+func SetAllPermissionsToByRoleIDifNotExists(roleID string, route string, permission bool) {
 
 	var RP RolePermission
 	Db.Where("role_id = ?", roleID).Where("end_point = ?", route).Last(&RP)

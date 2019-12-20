@@ -1,8 +1,9 @@
 package src
 
 import (
-	"github.com/jinzhu/gorm"
 	"time"
+
+	"github.com/jinzhu/gorm"
 )
 
 // Db database
@@ -15,7 +16,7 @@ var AdmPass string
 var Err error
 
 // Version of api
-const Version = "0.2.1"
+const Version = "0.2.2"
 
 // DbLogMode log mode for database
 const DbLogMode = true
@@ -25,7 +26,7 @@ const Port = "55555"
 
 // UserSignIn struct to get user token
 type UserSignIn struct {
-	UserName string
+	Name     string
 	Password string
 }
 
@@ -35,11 +36,106 @@ type UserRefreshToken struct {
 	RefreshToken string
 }
 
+//Model base model for all struct
+type Model struct {
+	ID        string `gorm : "primary_key"`
+	CreatedAt time.Time
+	// CreatedBy string
+	UpdatedAt time.Time
+	// UpdatedBy string
+	DeletedAt *time.Time
+	// DeletedBy string
+}
+
+// BeforeCreate create id
+func (base *Model) BeforeCreate(scope *gorm.Scope) error {
+	// uuID, err := uuid.NewRandom()
+	// if err != nil {
+	// 	return err
+	// }
+	return scope.SetColumn("id", GetHash())
+}
+
+// Token Described Roles
+type Token struct {
+	Model
+	Token   string `gorm:"unique_index"`
+	UserID  string
+	RoleID  string
+	Expired time.Time
+}
+
+// RefreshToken Described Roles
+type RefreshToken struct {
+	Model
+	RefreshToken string `gorm:"unique_index"`
+	UserID       string
+	RoleID       string
+	Expired      time.Time
+}
+
 // TokenResponse response to front end with the token and expiry time
 type TokenResponse struct {
-	UserID             uint
+	UserID             string
 	Token              string
 	TokenExpire        time.Time
 	RefreshToken       string
 	RefreshTokenExpire time.Time
+}
+
+// UserRoles the table where User Project and his role for the project is linked
+type UserRoles struct {
+	Model
+	RoleID string
+	UserID string
+	TeamID string
+}
+
+// User User Data
+type User struct {
+	Model
+	Name     string `gorm:"type:varchar(100);unique_index"`
+	FullName string
+	Email    string
+	RoleID   string
+	Salt     string `json:"-"`
+	Hash     string `json:"-"`
+	Enabled  bool
+}
+
+// Role Described Roles
+type Role struct {
+	Model
+	Name      string `gorm:"type:varchar(100);unique_index"`
+	Users     []User `gorm:"foreignkey:RoleID;association_foreignkey:id"`
+	CompanyID string
+}
+
+// RolePermission the permission connected to Role
+type RolePermission struct {
+	Model
+	Post     bool `gorm:"default:'false'"`
+	Get      bool `gorm:"default:'false'"`
+	Patch    bool `gorm:"default:'false'"`
+	Delete   bool `gorm:"default:'false'"`
+	EndPoint string
+	RoleID   string `gorm:"foreignkey:RoleID"`
+}
+
+// UserPermission the permission connected to User
+type UserPermission struct {
+	Model
+	Post     bool `gorm:"default:'false'"`
+	Get      bool `gorm:"default:'false'"`
+	Patch    bool `gorm:"default:'false'"`
+	Delete   bool `gorm:"default:'false'"`
+	EndPoint string
+	UserID   string `gorm:"foreignkey:UserID"`
+}
+
+// Company list of all organizations in the system
+type Company struct {
+	Model
+	Name  string `gorm:"unique_index"`
+	Roles []Role
 }

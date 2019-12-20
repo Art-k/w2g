@@ -5,28 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	// "strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 )
-
-// UserSectionName this name will be used to set permissions for users
-const UserSectionName = "UserSection"
-
-// User User Data
-type User struct {
-	gorm.Model
-	UserName  string `gorm:"type:varchar(100);unique_index"`
-	FullName  string
-	Email     string
-	RoleID    uint
-	Salt      string
-	Hash      string
-	Enabled   bool
-	CreatedBy uint
-	UpdatedBy uint
-	DeletedBy uint
-}
 
 type apiUsersResponse struct {
 	API    string
@@ -41,7 +23,7 @@ func Users(w http.ResponseWriter, r *http.Request) {
 		log.Println("GET Users")
 
 		var users []User
-		Db.Select("ID, user_name, full_name, created_at, updated_at, email, role_id, enabled, created_by, updated_at, updated_by").Find(&users)
+		Db.Find(&users)
 
 		var Response apiUsersResponse
 		Response.Entity = users
@@ -59,11 +41,8 @@ func Users(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UserCRUD crud for user object
-func UserCRUD(w http.ResponseWriter, r *http.Request) {
-
-	FillAnswerHeader(w)
-	OptionsAnswer(w)
+// UserOptionGetPatchDelete crud for user object
+func UserOptionGetPatchDelete(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	fmt.Println(params)
@@ -71,10 +50,7 @@ func UserCRUD(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "OPTIONS":
-		log.Println("OPTIONS /user/" + params["id"])
-
-	case "POST":
-		log.Println("POST /user/" + params["id"])
+		log.Println("OPTIONS /user/")
 
 	case "PATCH":
 		log.Println("PATCH /user/" + params["id"])
@@ -83,9 +59,35 @@ func UserCRUD(w http.ResponseWriter, r *http.Request) {
 		log.Println("DELETE /user/" + params["id"])
 
 	case "GET":
+
 		log.Println("GET /user/" + params["id"])
+		// id, _ := strconv.ParseUint(params["id"], 10, 64)
+		var user User
+		Db.Where("id = ?", params["id"]).Last(&user)
+		if user.Name != "" {
+			addedrecordString, _ := json.Marshal(user)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, string(addedrecordString))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
+
+		}
 
 	default:
-		fmt.Fprintf(w, "Sorry, only OPTIONS,POST,PATCH,DELETE,GET methods are supported.")
+		fmt.Fprintf(w, "Sorry, only PATCH,DELETE,GET methods are supported.")
+	}
+}
+
+// UserPostOptions post new user
+func UserPostOptions(w http.ResponseWriter, r *http.Request) {
+
+	switch r.Method {
+	case "OPTIONS":
+		log.Println("OPTIONS /user")
+	case "POST":
+		log.Println("POST /user")
+	default:
+		fmt.Fprintf(w, "Sorry, only OPTIONS,POST methods are supported.")
 	}
 }
