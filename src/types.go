@@ -38,7 +38,7 @@ type UserRefreshToken struct {
 
 //Model base model for all struct
 type Model struct {
-	ID        string `gorm : "primary_key"`
+	ID        string `gorm:"primary_key"`
 	CreatedAt time.Time
 	// CreatedBy string
 	UpdatedAt time.Time
@@ -133,8 +133,8 @@ type UserPermission struct {
 	UserID   string `gorm:"foreignkey:UserID"`
 }
 
-// Company list of all organizations in the system
-type Company struct {
+// Group the first level of groups
+type Group struct {
 	Model
 	Name  string `gorm:"unique_index"`
 	Roles []Role

@@ -81,9 +81,9 @@ func handleHTTP() {
 	r.HandleFunc("/role", src.RolePostOptions)
 	r.HandleFunc("/role/{id}", src.RoleOptionGetPatchDelete)
 
-	r.HandleFunc("/companies", src.Companies)
-	r.HandleFunc("/company", src.CompanyPostOptions)
-	r.HandleFunc("/company/{id}", src.CompanyOptionGetPatchDelete)
+	r.HandleFunc("/groups", src.Groups)
+	r.HandleFunc("/group", src.GroupPostOptions)
+	r.HandleFunc("/group/{id}", src.GroupOptionGetPatchDelete)
 
 	fmt.Printf("Starting Server to HANDLE w2g.tech back end\nPort : " + src.Port + "\nAPI revision " + src.Version + "\n\n")
 	if err := http.ListenAndServe(":"+src.Port, r); err != nil {
@@ -100,8 +100,8 @@ func databasePrepare() {
 		&src.UserPermission{},
 		&src.Token{},
 		&src.RefreshToken{},
-		&src.Company{},
-		&src.Project{})
+		&src.Group{},
+		&src.SubGroup{})
 
 	// src.Db.Model(&src.User{}).AddForeignKey("id", "roles(id)", "RESTRICT", "RESTRICT")
 
@@ -146,8 +146,8 @@ func databasePrepare() {
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/role", true)
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/roles", true)
 
-	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/company", true)
-	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/companies", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/group", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/groups", true)
 }
 
 func authMiddleware(next http.Handler) http.Handler {
