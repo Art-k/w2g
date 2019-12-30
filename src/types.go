@@ -11,6 +11,7 @@ var Db *gorm.DB
 
 // AdmPass error
 var AdmPass string
+var DEV bool
 
 // Err error
 var Err error
@@ -19,7 +20,7 @@ var Err error
 const Version = "0.2.2"
 
 // DbLogMode log mode for database
-const DbLogMode = true
+const DbLogMode = false
 
 // Port application use this port to get requests
 const Port = "55555"
@@ -40,9 +41,9 @@ type UserRefreshToken struct {
 type Model struct {
 	ID        string `gorm:"primary_key"`
 	CreatedAt time.Time
-	// CreatedBy string
+	CreatedBy string
 	UpdatedAt time.Time
-	// UpdatedBy string
+	UpdatedBy string
 	DeletedAt *time.Time
 	// DeletedBy string
 }
@@ -94,21 +95,24 @@ type UserRoles struct {
 // User User Data
 type User struct {
 	Model
-	Name     string `gorm:"type:varchar(100);unique_index"`
-	FullName string
-	Email    string
-	RoleID   string
-	Salt     string `json:"-"`
-	Hash     string `json:"-"`
-	Enabled  bool
+	Name       string `gorm:"type:varchar(100);unique_index"`
+	FullName   string
+	Email      string
+	RoleID     string
+	Salt       string `json:"-"`
+	Hash       string `json:"-"`
+	SetPass    string `json:"-"`
+	Enabled    bool
+	Active     bool `gorm:"default:'false'"`
+	PwdChanged *time.Time
 }
 
 // Role Described Roles
 type Role struct {
 	Model
-	Name      string `gorm:"type:varchar(100);unique_index"`
-	Users     []User `gorm:"foreignkey:RoleID;association_foreignkey:id"`
-	CompanyID string
+	Name    string `gorm:"type:varchar(100);unique_index"`
+	Users   []User `gorm:"foreignkey:RoleID;association_foreignkey:id"`
+	GroupID string
 }
 
 // RolePermission the permission connected to Role

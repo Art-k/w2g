@@ -19,6 +19,9 @@ type apiRoleResponse struct {
 // Roles list of all roles
 func Roles(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+	case "OPTIONS":
+		log.Println("OPTIONS Users")
+
 	case "GET":
 		log.Println("GET Users")
 

@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+
 	// "strings"
 
 	"./src"
@@ -23,6 +25,9 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 	src.AdmPass = os.Getenv("ADMP")
+	if os.Getenv("STATE") == "dev" {
+		src.DEV = true
+	}
 
 	src.Db, src.Err = gorm.Open("sqlite3", "w2g.db")
 	if src.Err != nil {
@@ -76,6 +81,8 @@ func handleHTTP() {
 	r.HandleFunc("/users", src.Users)
 	r.HandleFunc("/user", src.UserPostOptions)
 	r.HandleFunc("/user/{id}", src.UserOptionGetPatchDelete)
+	r.HandleFunc("/password/{id}", src.SetPassword)
+	r.HandleFunc("/invite/{id}", src.Invite)
 
 	r.HandleFunc("/roles", src.Roles)
 	r.HandleFunc("/role", src.RolePostOptions)
@@ -141,7 +148,9 @@ func databasePrepare() {
 	}
 
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/user", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/password", true)
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/users", true)
+	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/invite", true)
 
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/role", true)
 	src.SetAllPermissionsToByRoleIDifNotExists(user.RoleID, "/roles", true)
@@ -152,36 +161,83 @@ func databasePrepare() {
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("\n\n NEW SESSION \n")
+		log.Println("========================================================================")
+		log.Println("DO A AUTH ROUTINES")
+		fmt.Println("DO A AUTH ROUTINES")
 
 		log.Println("URI " + r.RequestURI)
-		if r.RequestURI == "/token" {
-			next.ServeHTTP(w, r)
-		} else {
+		fmt.Println("URI " + r.RequestURI)
 
-			Authorization := r.Header.Get("Authorization")
-			isUser, cUser := src.IsLegalUser(Authorization)
+		log.Println("URI " + r.Method)
+		fmt.Println("URI " + r.Method)
 
-			if isUser {
+		if r.Method != "OPTIONS" {
 
-				route := r.URL.Path
-				method := r.Method
-
-				if !src.IfUserHasPermission(cUser, src.GetRoute(route), method) {
-					w.WriteHeader(http.StatusForbidden)
-					n, _ := fmt.Fprintf(w, "{\"message\":\"Access Denided\"}")
-					log.Println(n)
-				}
-
-				ctx := context.WithValue(r.Context(), "user", cUser.ID)
-				r = r.WithContext(ctx)
+			if r.RequestURI == "/token" || strings.Contains(r.RequestURI, "/password/") {
+				msg := r.RequestURI + " the received request is /token we don't need to auth here, do next handler"
+				log.Println(msg)
+				fmt.Println(msg)
 
 				next.ServeHTTP(w, r)
-
 			} else {
-				w.WriteHeader(http.StatusNotFound)
-				n, _ := fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
-				log.Println(n)
+
+				msg := r.RequestURI + " the received request is not /token we need to auth here"
+				log.Println(msg)
+				fmt.Println(msg)
+
+				Authorization := r.Header.Get("Authorization")
+				isUser, cUser := src.IsLegalUser(Authorization)
+
+				msg = cUser.Name + " if found, so we will do all things under that user"
+				log.Println(msg)
+				fmt.Println(msg)
+
+				if isUser && cUser.Enabled {
+
+					route := r.URL.Path
+					method := r.Method
+
+					msg = r.Method + " user wants to use that method, we need to check permissions for him"
+					log.Println(msg)
+					fmt.Println(msg)
+
+					if !src.IfUserHasPermission(cUser, src.GetRoute(route), method) {
+
+						msg = cUser.Name + " doesn't have a permission to do that"
+						log.Println(msg)
+						fmt.Println(msg)
+
+						w.WriteHeader(http.StatusForbidden)
+						n, _ := fmt.Fprintf(w, "{\"message\":\"Access Denided\"}")
+						log.Println(n)
+						return
+					}
+
+					msg = cUser.Name + " has permission to do that, do a next handle"
+					log.Println(msg)
+					fmt.Println(msg)
+
+					ctx := context.WithValue(r.Context(), "user", cUser.ID)
+					r = r.WithContext(ctx)
+
+					next.ServeHTTP(w, r)
+
+				} else {
+
+					msg = Authorization + " not connected to any user"
+					log.Println(msg)
+					fmt.Println(msg)
+
+					w.WriteHeader(http.StatusNotFound)
+					n, _ := fmt.Fprintf(w, "{\"message\":\"User Not Found\"}")
+					log.Println(n)
+				}
 			}
+		} else {
+			next.ServeHTTP(w, r)
+			//n, _ := fmt.Fprintf(w, "")
+			//fmt.Println(n)
 		}
 
 	})
@@ -189,13 +245,8 @@ func authMiddleware(next http.Handler) http.Handler {
 
 func headerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		src.FillAnswerHeader(w)
 		src.OptionsAnswer(w)
-
-		// Do stuff here
-		// log.Println(r.RequestURI)
-		// Call the next handler, which can be another middleware in the chain, or the final handler.
 		next.ServeHTTP(w, r)
 	})
 }
